@@ -152,7 +152,7 @@
         w (:width config)
         h (:height config)
         s (:shift config)]
-    (cljs.pprint/pprint config)
+    (println "Using configuration" config)
     [:svg
      {:view-box (str (/ w -2) " "
                      (/ h -2) " "
