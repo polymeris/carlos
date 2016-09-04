@@ -1,7 +1,7 @@
 (ns carlos.svg
   (:require [goog.string :as s]
             [goog.string.format]
-            [reagent.core :as r]))
+            [rand-cljc.core :as rng]))
 
 (defn pattern-id [colors]
   (apply str colors))
@@ -53,38 +53,40 @@
      :ring [ring (:shape-diameter config) (:shape-inner-diameter config) (pattern-ref (:palette config))]
      :diamond [diamond (:shape-width config) (:shape-height config) (pattern-ref (:palette config))])])
 
-(defn random-palette [n]
-  (conj (take n (shuffle ["black" "red" "green" "yellow" "blue"]))
+(defn random-palette [n prng]
+  (conj (take n (rng/shuffle prng ["black" "red" "green" "yellow" "blue"]))
         "transparent"))
-(defn random-background-palette [p] p
+(defn background-palette [p] p
   (conj (take (dec (count p)) p)
         "black"))
 
 (defn parse-config [config]
   (let [seed (or (:seed config) (rand-int 1e7))
-        _ (Math/seedrandom (str seed))
+        prng (rng/rng seed)
+        prng-int (fn [min max] (+ min (rng/rand-int prng (- max min))))
+        prng-nth (partial rng/rand-nth prng)
         complexity (or (:complexity config) 10)
         width (or (:width config) (* 25 complexity))
         height (or (:height config) (* 25 complexity))
         max-shapes (or (:max-shapes config) (Math/floor (Math/sqrt complexity)))
         num-colors (or (:num-colors config) (if (> complexity 3) 4 3))
-        palette (or (:palette config) (random-palette num-colors))]
+        palette (or (:palette config) (random-palette num-colors prng))]
     (-> config
         (assoc :width width)
         (assoc :height height)
-        (update :shape #(or % (rand-nth [:rectangle :circle :ring :diamond])))
+        (update :shape #(or % (prng-nth [:rectangle :circle :ring :diamond])))
         (assoc :max-shapes max-shapes)
-        (update :num-shapes #(or % (- max-shapes (rand-int (/ max-shapes 2)))))
-        (update :shape-distribution #(or % (rand-nth [:linear :centered])))
-        (update :shape-width #(or % (inc (+ (/ width 2) (rand-int (/ width 2))))))
-        (update :shape-height #(or % (inc (+ (/ height 2) (rand-int (/ height 2))))))
-        (update :shape-diameter #(or % (inc (+ (/ height 2) (rand-int (/ height 2))))))
-        (update :shape-inner-diameter #(or % (inc (+ (/ height 4) (rand-int (/ height 4))))))
-        (update :phase #(or % (rand-int 360)))
-        (update :shift #(or % (+ 1 complexity (* 6 (rand-int complexity)))))
+        (update :num-shapes #(or % (- max-shapes (prng-int 0 (/ max-shapes 2)))))
+        (update :shape-distribution #(or % (prng-nth [:linear :centered])))
+        (update :shape-width #(or % (prng-int (/ width 2) width)))
+        (update :shape-height #(or % (prng-int (/ height 2) height)))
+        (update :shape-diameter #(or % (prng-int (/ height 2) height)))
+        (update :shape-inner-diameter #(or % (prng-int (/ height 4) (/ height 2))))
+        (update :phase #(or % (prng-int 0 360)))
+        (update :shift #(or % (* 6 (prng-int (/ complexity 2) complexity))))
         (assoc :num-colors num-colors)
         (assoc :palette palette)
-        (update :background-palette #(or % (random-background-palette palette))))))
+        (update :background-palette #(or % (background-palette palette))))))
 
 (defn palettes [config]
   [:defs
@@ -100,18 +102,15 @@
 
 (defn foreground [config]
   (let [n (:num-shapes config)
-        s (:shift config)
-        dx (r/atom 0)]
-    [:g {:id :foreground
+        s (:shift config)]
+    [:g {:id      :foreground
          :opacity 0.5}
      (doall (map
-              #(shape (assoc config :shift-shape
-                                    (* s
-                                       (- % (/ (dec n) 2)))))
+              #(shape (assoc config :shift-shape (* s (- % (/ (dec n) 2)))))
               (range n)))
      (when (:animation config)
-       [:animateMotion {:dur           45
-                        :repeatCount   :indefinite}
+       [:animateMotion {:dur         45
+                        :repeatCount :indefinite}
         [:mpath {:xlink-href :#motion-path}]])]))
 
 (defn illustration [config]
