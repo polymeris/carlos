@@ -10,6 +10,7 @@ pom.xml.asc
 /.nrepl-port
 /resources/public/js
 /public/js/out
+/public/js/app.js
 /out
 /.repl
 *.log
