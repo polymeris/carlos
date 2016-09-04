@@ -1,0 +1,43 @@
+body {
+  font-family: Futura, "PT Sans", "Gill Sans", "Trebuchet MS", "Open Sans", sans-serif;
+  max-width: 640px;
+  margin: 0 auto;
+  padding-top: 0.5em;
+  color: #666;
+}
+
+h1, h2, h3 {
+  color: #333;
+}
+
+h1 {
+  font-size: 1.75em
+}
+
+a {
+  text-decoration: none;
+  color: #333;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+a#permalink {
+  float: right;
+}
+
+form {
+  padding-bottom: 0.5em;
+  border-bottom: 1px solid #ccc;
+}
+
+form * {
+  font-size: 12pt;
+  margin-right: 0.25em;
+  color: #666;
+}
+
+svg {
+  margin-top: 0.5em;
+}
