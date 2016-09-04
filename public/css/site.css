@@ -1,6 +1,7 @@
 body {
   font-family: Futura, "PT Sans", "Gill Sans", "Trebuchet MS", "Open Sans", sans-serif;
-  max-width: 640px;
+  max-width: 720px;
+  font-size: 12pt;
   margin: 0 auto;
   padding-top: 0.5em;
   color: #666;
@@ -8,10 +9,12 @@ body {
 
 h1, h2, h3 {
   color: #333;
+  font-size: 120%;
 }
 
-h1 {
-  font-size: 1.75em
+#show-hide {
+  float: right;
+  cursor: pointer;
 }
 
 a {
