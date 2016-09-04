@@ -3,6 +3,12 @@
             [goog.string.format]
             [rand-cljc.core :as rng]))
 
+(defn deg-sin [x]
+  (Math/sin (/ (* Math/PI x) 180)))
+
+(defn deg-cos [x]
+  (Math/cos (/ (* Math/PI x) 180)))
+
 (defn pattern-id [palette]
   (apply str (flatten palette)))
 
@@ -35,7 +41,7 @@
 (defn ring [outer-diameter inner-diameter pattern]
   (let [outer-radius (/ outer-diameter 2)
         inner-radius (/ inner-diameter 2)]
-    [:circle {:r            outer-radius
+    [:circle {:r            inner-radius
               :stroke-width (- outer-radius inner-radius)
               :fill         :none
               :stroke       pattern}]))
@@ -50,13 +56,32 @@
                :fill   pattern}]))
 
 (defn shape [config]
-  [:g {:key       (s/format "shape-%d" (:shift-shape config))
-       :transform (s/format "translate(%d)" (:shift-shape config))}
-   (case (:shape config)
-     :rectangle [rectangle (:shape-width config) (:shape-height config) (pattern-ref (:palette config))]
-     :circle [circle (:shape-diameter config) (pattern-ref (:palette config))]
-     :ring [ring (:shape-diameter config) (:shape-inner-diameter config) (pattern-ref (:palette config))]
-     :diamond [diamond (:shape-width config) (:shape-height config) (pattern-ref (:palette config))])])
+  (let [p-ref (pattern-ref (:palette config))
+        w (:shape-width config)
+        h (:shape-height config)
+        d (:shape-diameter config)
+        id (:shape-inner-diameter config)
+        n (:shape-n config)
+        pos (- n (/ (dec (:num-shapes config)) 2))
+        linear-sh (* (:shift config) pos)
+        linear-angle (:phase config)
+        centered-ph (+ (:phase config) (* pos (/ 360 (:num-shapes config))))
+        centered-d (:shift config)
+        transform (case (:shape-distribution config)
+                    :linear (s/format "translate(%f %f)"
+                                      linear-sh
+                                      (* linear-sh (deg-sin linear-angle)))
+                    :centered (s/format "translate(%f %f)"
+                                        (* centered-d (deg-cos centered-ph))
+                                        (* centered-d (deg-sin centered-ph))))]
+    [:g {:id        (s/format "shape-%d" n)
+         :key       (s/format "shape-%d" n)
+         :transform transform}
+     (case (:shape config)
+       :rectangle [rectangle w h p-ref]
+       :circle [circle d p-ref]
+       :ring [ring d id p-ref]
+       :diamond [diamond w h p-ref])]))
 
 (defn random-palette [n prng]
   (map #(do [% (/ (dec (rng/rand-int prng 6)) 4)])
@@ -77,19 +102,22 @@
         height (or (:height config) (* 25 complexity))
         max-shapes (or (:max-shapes config) (Math/floor (Math/sqrt complexity)))
         num-colors (or (:num-colors config) (if (> complexity 3) 4 3))
-        palette (or (:palette config) (random-palette num-colors prng))]
+        palette (or (:palette config) (random-palette num-colors prng))
+        shape-distribution (or (:shape-distribution config) (prng-nth [:linear :linear :centered]))]
     (-> config
         (assoc :width width)
         (assoc :height height)
         (update :shape #(or % (prng-nth [:rectangle :circle :ring :diamond])))
         (assoc :max-shapes max-shapes)
         (update :num-shapes #(or % (- max-shapes (prng-int 0 (/ max-shapes 2)))))
-        (update :shape-distribution #(or % (prng-nth [:linear :centered])))
+        (assoc :shape-distribution shape-distribution)
         (update :shape-width #(or % (prng-int (/ width 2) width)))
         (update :shape-height #(or % (prng-int (/ height 2) height)))
         (update :shape-diameter #(or % (prng-int (/ height 2) height)))
-        (update :shape-inner-diameter #(or % (prng-int (/ height 4) (/ height 2))))
-        (update :phase #(or % (prng-int 0 360)))
+        (update :shape-inner-diameter #(or % (prng-int (/ height 3) (/ height 2))))
+        (update :phase #(or % (if (= shape-distribution :linear)
+                                (prng-nth [-45 0 0 45])
+                                (prng-int 0 360))))
         (update :shift #(or % (* 6 (prng-int (/ complexity 2) complexity))))
         (assoc :num-colors num-colors)
         (assoc :palette palette)
@@ -108,12 +136,11 @@
             :fill (pattern-ref (:background-palette config))}]))
 
 (defn foreground [config]
-  (let [n (:num-shapes config)
-        s (:shift config)]
+  (let [n (:num-shapes config)]
     [:g {:id      :foreground
          :opacity 0.5}
      (doall (map
-              #(shape (assoc config :shift-shape (* s (- % (/ (dec n) 2)))))
+              #(shape (assoc config :shape-n %))
               (range n)))
      (when (:animation config)
        [:animateMotion {:dur         45
@@ -125,7 +152,7 @@
         w (:width config)
         h (:height config)
         s (:shift config)]
-    (println "Using configuration" config)
+    (cljs.pprint/pprint config)
     [:svg
      {:view-box (str (/ w -2) " "
                      (/ h -2) " "
