@@ -3,22 +3,27 @@
             [goog.string.format]
             [rand-cljc.core :as rng]))
 
-(defn pattern-id [colors]
-  (apply str colors))
+(defn pattern-id [palette]
+  (apply str (flatten palette)))
 
-(defn pattern-ref [colors]
-  (str "url(#" (pattern-id colors) ")"))
+(defn pattern-ref [palette]
+  (str "url(#" (pattern-id palette) ")"))
 
-(defn pattern [colors]
-  [:pattern
-   {:id            (pattern-id colors)
-    :width         (count colors)
-    :height        1
-    :pattern-units :userSpaceOnUse}
-   (map (fn [i c]
-          [:rect {:x i :y 0 :width 1 :height 1 :fill c :key (str (pattern-id colors) i)}])
-        (iterate inc 0)
-        colors)])
+(defn pattern [config palette]
+  (let [h (:height config)]
+    [:pattern
+     {:id            (pattern-id palette)
+      :width         (count palette)
+      :y             (/ h -2)
+      :height        h
+      :pattern-units :userSpaceOnUse}
+     (map (fn [i [c t]]
+            [:rect {:transform (s/format "rotate(%f)" t)
+                    :x         i :y 0 :width 1.4 :height h
+                    :fill      c
+                    :key       (str (pattern-id palette) i)}])
+          (iterate inc 0)
+          palette)]))
 
 (defn rectangle [w h pattern]
   [:rect {:x (/ w -2) :y (/ h -2) :width w :height h :fill pattern}])
@@ -54,11 +59,13 @@
      :diamond [diamond (:shape-width config) (:shape-height config) (pattern-ref (:palette config))])])
 
 (defn random-palette [n prng]
-  (conj (take n (rng/shuffle prng ["black" "red" "green" "yellow" "blue"]))
-        "transparent"))
+  (map #(do [% (/ (dec (rng/rand-int prng 6)) 4)])
+       (conj (take n (rng/shuffle prng ["black" "red" "green" "yellow" "blue"]))
+             "transparent")))
+
 (defn background-palette [p] p
   (conj (take (dec (count p)) p)
-        "black"))
+        ["black" 0]))
 
 (defn parse-config [config]
   (let [seed (or (:seed config) (rand-int 1e7))
@@ -90,8 +97,8 @@
 
 (defn palettes [config]
   [:defs
-   [pattern (:background-palette config)]
-   [pattern (:palette config)]])
+   [pattern config (:background-palette config)]
+   [pattern config (:palette config)]])
 
 (defn background [config]
   (let [w (:width config)
