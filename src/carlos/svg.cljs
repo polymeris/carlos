@@ -154,9 +154,9 @@
         s (:shift config)]
     (println "Using configuration" config)
     [:svg
-     {:view-box (str (/ w -2) " "
-                     (/ h -2) " "
-                     w " " h)}
+     {:view-box    (str (/ w -2) " "
+                        (/ h -2) " "
+                        w " " h)}
      [:path {:id :motion-path
              :d  (s/format "M0 0 H-%d H%d H0" (/ s 2) (/ s 2))}]
      [palettes config]
