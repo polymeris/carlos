@@ -31,6 +31,23 @@
   (swap! config #(assoc % :animation c))
   (println "Animation set to" (:animation @config)))
 
+(defn render! []
+  (let [data (-> (r/render-to-string [illustration @config])
+                 (clojure.string/replace
+                   #"<svg "
+                   (str "<svg "
+                        "xmlns=\"http://www.w3.org/2000/svg\" "
+                        "xmlns:svg=\"http://www.w3.org/2000/svg\" "
+                        "xmlns:xlink=\"http://www.w3.org/1999/xlink\" "
+                        "width=\"720\" height=\"720\" ")))
+        blob (js/Blob. (clj->js [data]) #js {:type "data:image/svg+xml;"})]
+    (doto (js/document.createElement "a")
+      (aset "href" (js/URL.createObjectURL blob))
+      (aset "download" (str "carlos-" (:seed @config) ".svg"))
+      (js/document.body.appendChild)
+      (.click)
+      (js/document.body.removeChild))))
+
 ;; -------------------------
 ;; Views
 
@@ -62,7 +79,8 @@
                             :on-change #(set-animation! (-> (sel1 :#animate)
                                                             (.-checked)))
                             :checked   (:animation @config)}]
-            "Animate"]]])
+            "Animate"]
+           [:a#download {:on-click render!} "Download SVG"]]])
        [:div#illustration
         {:on-click random-seed!}
         [illustration @config]]])))
